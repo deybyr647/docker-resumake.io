@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  resumake:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resumake-app
+    restart: unless-stopped
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
