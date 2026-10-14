@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: resumake-app
+    container_name: resumake
     restart: unless-stopped
     ports:
       - "3005:3000"
