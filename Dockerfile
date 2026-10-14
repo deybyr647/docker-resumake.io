@@ -1,8 +1,9 @@
 # Step 1: Install dependencies
-FROM node:18-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
-# Copy package files to leverage Docker caching
+RUN mkdir -p public
+
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
@@ -12,13 +13,15 @@ RUN \
   fi
 
 # Step 2: Build the application
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment to production during build
+# Explicitly ensure swiftlatex assets are in public/ before build
+RUN mkdir -p public && cp node_modules/swiftlatex/dist/swift*.js node_modules/swiftlatex/dist/*.wasm public/
+
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
@@ -30,19 +33,18 @@ RUN \
   fi
 
 # Step 3: Production runner image
-FROM node:18-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# Copy public folder containing static assets and WebAssembly binaries
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Automatically leverage output standalone mode if configured, or copy full .next folder
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
